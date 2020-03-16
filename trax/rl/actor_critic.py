@@ -100,6 +100,7 @@ class ActorCriticTrainer(rl_training.PolicyTrainer):
       value_model = self._value_eval_model
       value_model.weights = self._value_trainer.model_weights
       values = value_model(np_trajectory.observations, n_accelerators=1)
+      values = np.squeeze(values, axis=2)  # Remove the last singleton dim.
       yield self.policy_inputs(np_trajectory, values)
 
   def train_epoch(self):
@@ -130,8 +131,5 @@ class AWRTrainer(ActorCriticTrainer):
   @property
   def policy_loss(self):
     """Policy loss."""
-    loss = functools.partial(
+    return functools.partial(
         distributions.LogLoss, distribution=self._policy_dist)
-    # TODO(pkozakowski): why does the above not work?
-    loss = tl.CrossEntropyLoss
-    return loss
