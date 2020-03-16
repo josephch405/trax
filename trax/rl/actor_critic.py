@@ -28,7 +28,9 @@ from trax.rl import training as rl_training
 
 
 class ActorCriticTrainer(rl_training.PolicyTrainer):
-  """Trains policy and value models using actor-critic methods."""
+  """Trains policy and value models using the actor-critic algorithm.
+
+  The code below assumes separate value and policy models."""
 
   def __init__(self, task,
                value_model=None,
@@ -109,7 +111,7 @@ class ActorCriticTrainer(rl_training.PolicyTrainer):
 
 
 class AWRTrainer(ActorCriticTrainer):
-  """Trains a policy model using AWR."""
+  """Trains policy and value models using AWR."""
 
   def __init__(self, task, beta=1.0, w_max=20.0, **kwargs):
     """Configures the AWR Trainer."""
@@ -126,6 +128,37 @@ class AWRTrainer(ActorCriticTrainer):
     return (trajectory.observations[:, :-1],
             trajectory.actions[:, :-1],
             awr_weights)
+
+  @property
+  def policy_loss(self):
+    """Policy loss."""
+    loss = functools.partial(
+        distributions.LogLoss, distribution=self._policy_dist)
+    # TODO(pkozakowski): why does the above not work?
+    loss = tl.CrossEntropyLoss
+    return loss
+
+
+class AdvatangeActorCriticTrainer(ActorCriticTrainer):
+  """The Advantage Actor Critic Algorithm aka A2C.
+
+  Trains policy and value models using the A2C algortithm.
+  This is a variant with separate value and policy models.
+  """
+
+  def __init__(self, task, **kwargs):
+    """Configures the a2c Trainer."""
+    super(AdvatangeActorCriticTrainer, self).__init__(task, **kwargs)
+
+  def policy_inputs(self, trajectory, values):
+    """Create inputs to policy model from a TrajectoryNp and values."""
+    # rew = trajectory.rewards[:, :-1]
+    # td_advantage = rew + self._task.gamma * values[:, 1:] - values[:, :-1]
+    advantages = trajectory.returns[:, :-1] - values[:, :-1]
+    # awr_weights = np.minimum(np.exp(td_advantage / self._beta), self._w_max)
+    return (trajectory.observations[:, :-1],
+            trajectory.actions[:, :-1],
+            advantages)
 
   @property
   def policy_loss(self):
